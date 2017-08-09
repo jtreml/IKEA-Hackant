@@ -21,8 +21,6 @@
 
 
 uint16_t lastPosition = 0;
-uint16_t memOne = 0;
-uint16_t memTwo = 0;
 
 uint16_t currentTarget = 0;
 uint8_t initializedTarget = false;
@@ -33,23 +31,9 @@ uint8_t currentTableMovement = 0;
 const int moveTableUpPin = PD4;
 const int moveTableDownPin = PD7;
 
-const int moveUpButton = PD3;
-const int moveM2Button = PD6;
-const int moveM1Button = PD5;
-const int moveDownButton = 8;
-
-int pressedButton = 0;
-int lastPressedButton = 0;
-unsigned long lastPressed = 0;
-uint8_t doOnce = false;
-
 
 void printValues() {
   Serial.println("======= VALUES =======");
-  Serial.print("Memory 1 is at: ");
-  Serial.println(memOne);
-  Serial.print("Memory 2 is at: ");
-  Serial.println(memTwo);
   Serial.print("Threshold is: ");
   Serial.println(targetThreshold);
   Serial.print("Current Position: ");
@@ -63,36 +47,8 @@ void printHelp() {
   Serial.println("Send 'HELP' to show this view");
   Serial.println("Send 'VALUES' to show the current values");
   Serial.println("Send 'T123' to set the threshold to 123 (255 max!)");
-  Serial.println("Send 'M1' to move to position stored in memory 1");
-  Serial.println("Send 'M2' to move to position stored in memory 2");
-  Serial.println("Send 'S1' to store current position in memory 1");
-  Serial.println("Send 'S2' to store current position in memory 2");
-  Serial.println("Send 'M15000' to move set the mem 1 position to 5000");
-  Serial.println("Send 'M25000' to move set the mem 2 position to 5000");
   Serial.println("Send '1580' to move to position 1580.");
   Serial.println("===============================");
-}
-
-void storeM1(uint16_t value) {
-  if (value > 150 && value < 6400) {
-    memOne = value;
-    Serial.print("New Memory 1: ");
-    Serial.println(value);
-    EEPROM.put(1, value);
-  } else {
-    Serial.println("Not stored. Keep your value between 150 and 6400");
-  }
-}
-
-void storeM2(uint16_t value) {
-  if (value > 150 && value < 6400) {
-    memTwo = value;
-    Serial.print("New Memory 2: ");
-    Serial.println(value);
-    EEPROM.put(3, value);
-  } else {
-    Serial.println("Not stored. Keep your value between 150 and 6400");
-  }
 }
 
 void storeThreshold(uint8_t value) {
@@ -182,110 +138,6 @@ void processLINFrame(LinFrame frame) {
   }
 }
 
-void readButtons() {
-
-  if (digitalRead(moveUpButton) == HIGH) {
-
-    pressedButton = moveUpButton;
-    if (lastPressedButton != pressedButton) {
-      Serial.println("Button UP Pressed");
-      lastPressedButton = pressedButton;
-    }
-    return;
-  }
-
-  if (digitalRead(moveM1Button) == HIGH) {
-    pressedButton = moveM1Button;
-    if (lastPressedButton != pressedButton) {
-      Serial.println("Button M1 Pressed");
-      lastPressedButton = pressedButton;
-
-    }
-    return;
-  }
-
-  if (digitalRead(moveM2Button) == HIGH) {
-    pressedButton = moveM2Button;
-    if (lastPressedButton != pressedButton) {
-      Serial.println("Button M2 Pressed");
-      lastPressedButton = pressedButton;
-
-    }
-    return;
-  }
-
-  if (digitalRead(moveDownButton) == HIGH) {
-    pressedButton = moveDownButton;
-    if (lastPressedButton != pressedButton) {
-      Serial.println("Button DN Pressed");
-      lastPressedButton = pressedButton;
-    }
-    return;
-  }
-
-
-  pressedButton = 0;
-
-}
-
-void loopButtons() {
-
-  if (pressedButton != 0) {
-
-    if (lastPressedButton == moveUpButton) {
-      moveTable(1);
-      currentTarget = lastPosition + (targetThreshold * 2);
-    } else if (lastPressedButton == moveDownButton) {
-      moveTable(2);
-      currentTarget = lastPosition - (targetThreshold * 2);
-    } else {
-      if (doOnce == false) {
-        lastPressed = millis();
-        doOnce = true;
-      }
-    }
-
-  } else {
-
-    if (doOnce) {
-
-      unsigned int pressDuration = millis() - lastPressed;
-
-      if (pressDuration > 0 && pressDuration < 1000) { // short press
-
-        Serial.print("Button pressed for ");
-        Serial.print(pressDuration);
-        Serial.println(" ms.");
-
-        if (lastPressedButton == moveM1Button) {
-          currentTarget = memOne;
-        } else if (lastPressedButton == moveM2Button) {
-          currentTarget = memTwo;
-        }
-
-      } else if (pressDuration >= 1000) {
-
-        Serial.print("Button pressed for ");
-        Serial.print(pressDuration);
-        Serial.println(" ms.");
-
-        if (lastPressedButton == moveM1Button) {
-          storeM1(lastPosition);
-        } else if (lastPressedButton == moveM2Button) {
-          storeM2(lastPosition);
-        }
-
-      }
-
-    }
-
-
-    doOnce = false;
-  }
-
-}
-
-
 void setup() {
 
 
@@ -297,20 +149,6 @@ void setup() {
 
   pinMode(moveTableUpPin, OUTPUT);
   pinMode(moveTableDownPin, OUTPUT);
-
-  pinMode(moveUpButton, INPUT);
-  pinMode(moveDownButton, INPUT);
-  pinMode(moveM1Button, INPUT);
-  pinMode(moveM2Button, INPUT);
-
-  Serial.print("moveUpButton ");
-  Serial.println(moveUpButton);
-  Serial.print("moveDownButton ");
-  Serial.println(moveDownButton);
-  Serial.print("moveM1Button ");
-  Serial.println(moveM1Button);
-  Serial.print("moveM2Button ");
-  Serial.println(moveM2Button);
 
   digitalWrite(moveTableUpPin, HIGH);
   digitalWrite(moveTableDownPin, HIGH);
@@ -328,17 +166,6 @@ void setup() {
   EEPROM.get(0, targetThreshold);
   if (targetThreshold == 255) {
     storeThreshold(120);
-  }
-
-  EEPROM.get(1, memOne);
-  if (memOne == 65535) {
-    storeM1(3500);
-  }
-
-
-  EEPROM.get(3, memTwo);
-  if (memTwo == 65535) {
-    storeM2(3500);
   }
 
   printValues();
@@ -393,31 +220,6 @@ void loop() {
       uint8_t threshold = (uint8_t)val.substring(1).toInt();
       storeThreshold(threshold);
 
-    } else if (val.indexOf("M1") != -1 || val.indexOf("m1") != -1) {
-
-      if (val.length() == 2) {
-        currentTarget = memOne;
-      } else {
-        storeM1(val.substring(2).toInt());
-      }
-
-
-    } else if (val.indexOf("M2") != -1 || val.indexOf("m2") != -1) {
-
-      if (val.length() == 2) {
-        currentTarget = memTwo;
-      } else {
-        storeM2(val.substring(2).toInt());
-      }
-
-    } else if (val.indexOf("S1") != -1 || val.indexOf("s1") != -1) {
-
-      storeM1(lastPosition);
-
-    } else if (val.indexOf("S2") != -1 || val.indexOf("s2") != -1) {
-
-      storeM2(lastPosition);
-
     } else {
       if (val.toInt() > 150 && val.toInt() < 6400) {
         Serial.print("New Target ");
@@ -428,8 +230,4 @@ void loop() {
       }
     }
   }
-
-  readButtons();
-  loopButtons();
-
 }
